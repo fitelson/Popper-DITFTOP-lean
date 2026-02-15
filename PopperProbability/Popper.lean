@@ -5,8 +5,9 @@ import Mathlib.Tactic
 # Popper's Axiomatic Theory of Conditional Probability
 
 A complete Lean 4 formalization of Karl Popper's axiomatic theory of
-conditional probability, following his 1955 paper "Two Autonomous Axiom
-Systems for the Calculus of Probabilities" and the 1994 Popper–Miller paper.
+conditional probability, following the derivations in Appendix *v
+("Derivations in the Formal Theory of Probability") of Popper's
+*The Logic of Scientific Discovery* (Routledge, 2002).
 
 ## Overview
 
