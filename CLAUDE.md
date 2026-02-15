@@ -23,11 +23,13 @@ Uses Lean 4.28.0-rc1 with Mathlib.
 
 ## Popper's Axiom System
 
-The `PopperProbability` structure bundles:
-- `S : Type` — propositions
+`PopperProbability` is a typeclass parameterized by `S : Type`:
 - `cp : S → S → ℝ` — conditional probability, `cp x y` means Pr(X | Y)
 - `a : S → S → S` — conjunction, `a x y` means X & Y
 - `n : S → S` — negation, `n x` means ~X
+
+The constant `k` (common value of all Pr(X | X)) is defined as `k_val` with a
+`local notation "k"` that transparently resolves the type parameter `S`.
 
 The axioms:
 - **A1**: Non-triviality — distinct probability values exist
