@@ -1,6 +1,6 @@
 # Popper-DITFTOP-lean
 
-A Lean 4 formalization of Karl Popper's axiomatic theory of conditional probability, following the derivations in Popper and Miller's 1994 paper "Deductive Inference in the Theory of Probability" (DITFTOP).
+A Lean 4 formalization of Karl Popper's axiomatic theory of conditional probability, following the derivations in Appendix \*v ("Derivations in the Formal Theory of Probability") of Popper's *Logic of Scientific Discovery* (DITFTOP).
 
 ## Overview
 
@@ -55,5 +55,4 @@ lake build
 
 ## References
 
-- K. Popper, "Two Autonomous Axiom Systems for the Calculus of Probabilities," *British Journal for the Philosophy of Science* 6 (1955), 51--57.
-- K. Popper and D. Miller, "Deductive Inference in the Theory of Probability," unpublished manuscript (1994).
+- K. Popper, *The Logic of Scientific Discovery*, Routledge, 2002. Appendix \*v: "Derivations in the Formal Theory of Probability."
