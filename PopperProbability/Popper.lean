@@ -4,8 +4,8 @@ import Mathlib.Tactic
 /-!
 # Popper's Axiomatic Theory of Conditional Probability
 
-A complete Lean 4 formalization of Karl Popper's axiomatic theory of
-conditional probability, following the derivations in Appendix *v
+A Lean 4 formalization of Karl Popper's axiomatic theory of conditional
+probability, following the derivations in Appendix *v
 ("Derivations in the Formal Theory of Probability") of Popper's
 *The Logic of Scientific Discovery* (Routledge, 2002).
 
@@ -24,9 +24,10 @@ Starting from six axioms (A1–A6) on a conditional probability function
 * **Lemmas 63–70**: Complementation: Pr(X & Y | Z) + Pr(~X & Y | Z) = Pr(Y | Z) + Pr(~Z | Z)
 * **Lemmas 71–80**: Inclusion-exclusion
 * **Lemmas 81–86**: Distribution laws
-* **Lemmas 87–89**: Double negation: Pr(~~X | Z) = Pr(X | Z)
-* **Lemmas 90–100**: Substitution / congruence principles
-* **Boolean algebra**: The quotient under probabilistic equivalence forms a Boolean algebra
+* **Lemmas 87–94**: Complementation, double negation, and Boolean-sum laws
+* **Lemmas 95–100**: Absolute/conditional probability and congruence principles
+* **Boolean algebra**: The quotient under probabilistic equivalence has a
+  nontrivial `BooleanAlgebra` instance (constructed in `QuotientBooleanAlgebra.lean`)
 -/
 
 -- ============================================================
@@ -48,7 +49,8 @@ class PopperProbability (S : Type) where
   a : S → S → S
   /-- Negation: `n x` means ~X -/
   n : S → S
-  /-- A1 (Non-triviality): There exist distinct probability values -/
+  /-- A1 (Non-triviality): There exist distinct probability values.
+      Classically, this is equivalent to Popper's free-variable formulation. -/
   ax_A1 : ∃ x y c d : S, cp x y ≠ cp c d
   /-- A2 (Substitution): If X and Y agree in probability under all conditions,
       they are intersubstitutable in the conditioning position -/
@@ -70,6 +72,14 @@ variable {S : Type} [PopperProbability S]
 instance instNonemptyS : Nonempty S := by
   obtain ⟨x, _, _, _, _⟩ := ax_A1 (S := S)
   exact ⟨x⟩
+
+/-- Popper's free-variable presentation of A1 follows from the compact
+    nontriviality field used in `PopperProbability`. -/
+theorem ax_A1_popper (x y : S) : ∃ c d : S, cp x y ≠ cp c d := by
+  obtain ⟨u, v, c, d, huvcd⟩ := ax_A1 (S := S)
+  by_cases h : cp x y = cp u v
+  · exact ⟨c, d, fun hcd => huvcd (h.symm.trans hcd)⟩
+  · exact ⟨u, v, h⟩
 
 /-- The constant k: the common value of all Pr(X | X).
     By A3, all self-conditional probabilities are equal. -/
@@ -678,6 +688,48 @@ theorem cp_neg_contra (x y : S) :
     cp (n (a (n x) x)) y = 1 := by
   linarith [lemma_73 x y, cp_contra x y]
 
+/-- The mirror form of Lemma 74: Pr(~(X & ~X) | Y) = 1. -/
+theorem cp_neg_contra_mirror (x y : S) :
+    cp (n (a x (n x))) y = 1 := by
+  have hcomm := cp_comm x (n x) y
+  have hc₁ := cp_compl (a x (n x)) y
+  have hc₂ := cp_compl (a (n x) x) y
+  linarith [cp_neg_contra x y]
+
+/-- Absolute probability, defined as conditioning on a canonical tautology. -/
+noncomputable def absProb (x : S) : ℝ :=
+  cp x (n (a (n (Classical.arbitrary S)) (Classical.arbitrary S)))
+
+/-- Lemma 75: absolute probability may be evaluated using any tautology
+    of the form `~(~Y & Y)`. -/
+theorem absProb_eq_cp_neg_contra (x y : S) :
+    absProb x = cp x (n (a (n y) y)) := by
+  unfold absProb
+  apply ax_A2
+  intro z
+  rw [cp_neg_contra, cp_neg_contra]
+
+/-- The mirror form of Lemma 75, using `~(Y & ~Y)`. -/
+theorem absProb_eq_cp_neg_contra_mirror (x y : S) :
+    absProb x = cp x (n (a y (n y))) := by
+  calc
+    absProb x = cp x (n (a (n y) y)) := absProb_eq_cp_neg_contra x y
+    _ = cp x (n (a y (n y))) := by
+      apply ax_A2
+      intro z
+      rw [cp_neg_contra, cp_neg_contra_mirror]
+
+/-- The four displayed forms in Popper's Lemma 75. -/
+theorem absProb_forms (x y : S) :
+    absProb x = cp x (n (a (n x) x)) ∧
+    absProb x = cp x (n (a x (n x))) ∧
+    absProb x = cp x (n (a (n y) y)) ∧
+    absProb x = cp x (n (a y (n y))) :=
+  ⟨absProb_eq_cp_neg_contra x x,
+   absProb_eq_cp_neg_contra_mirror x x,
+   absProb_eq_cp_neg_contra x y,
+   absProb_eq_cp_neg_contra_mirror x y⟩
+
 /-- Lemma 76: Pr(X & ~Y | Z) = Pr(X | Z) - Pr(X & Y | Z) + Pr(~Z | Z) -/
 theorem cp_conj_neg (x y z : S) :
     cp (a x (n y)) z =
@@ -769,7 +821,7 @@ theorem cp_distrib_equiv (x y z w : S) :
   linarith
 
 -- ============================================================
--- Double Negation (Lemmas 87–89)
+-- Complementation and Double Negation (Lemmas 87–89)
 -- ============================================================
 
 /-- Helper: Pr(~(~Y & ~~Y) | X & Z) = 1 -/
@@ -789,7 +841,15 @@ theorem cp_taut_conj (x y w : S) :
   rw [cp_taut_one x y w, one_mul] at h5
   exact h5
 
-/-- Lemma 88: Pr(~~X | Z) = Pr(X | Z) (double negation elimination) -/
+/-- Lemma 88: Pr((X&Y) + (X&~Y) | W) = Pr(X | W). -/
+theorem cp_complementation (x y w : S) :
+    cp (n (a (n (a x y)) (n (a x (n y))))) w = cp x w := by
+  have h86 := cp_distrib_equiv x y (n y) w
+  have hcomm := cp_comm x (n (a (n y) (n (n y)))) w
+  have htaut := cp_taut_conj x y w
+  linarith
+
+/-- Auxiliary double-negation elimination used in Lemma 89. -/
 theorem cp_double_neg (x z : S) :
     cp (n (n x)) z = cp x z := by
   have h1 := cp_compl (n x) z
@@ -803,7 +863,7 @@ theorem cp_double_neg_conj (x y z : S) :
       cp_double_neg x (a y z)]
 
 -- ============================================================
--- Substitution Principles (Lemmas 90–100)
+-- Boolean Sum and Substitution Principles (Lemmas 90–100)
 -- ============================================================
 
 /-- Lemma 90: Pr(X | Z) = Pr(Y | Z) → Pr(~X | Z) = Pr(~Y | Z) -/
@@ -846,7 +906,7 @@ theorem cp_cond_taut (x y z : S) :
       ax_A5 (n (a (n z) (n (n z)))) y u,
       cp_taut_one y z u, one_mul]
 
-/-- Lemma 96: Pr(X | Y & ~(~W & W)) = Pr(X | Y) -/
+/-- Auxiliary mirror form of Lemma 95. -/
 theorem cp_cond_taut' (x y w : S) :
     cp x (a y (n (a (n w) w))) = cp x y := by
   symm
@@ -855,6 +915,18 @@ theorem cp_cond_taut' (x y w : S) :
   rw [cp_comm y (n (a (n w) w)) u,
       ax_A5 (n (a (n w) w)) y u,
       cp_neg_contra w (a y u), one_mul]
+
+/-- Lemma 96: Pr(X | Y) * Pr(Y) = Pr(X & Y). -/
+theorem absProb_mul (x y : S) :
+    cp x y * absProb y = absProb (a x y) := by
+  unfold absProb
+  rw [ax_A5, cp_cond_taut']
+
+/-- Lemma 97: if Pr(Y) is nonzero, then
+    Pr(X | Y) = Pr(X & Y) / Pr(Y). -/
+theorem cp_eq_absProb_div (x y : S) (h : absProb y ≠ 0) :
+    cp x y = absProb (a x y) / absProb y := by
+  exact (eq_div_iff h).2 (absProb_mul x y)
 
 /-- Lemma 98: (∀ Z, Pr(X | Z) = Pr(Y | Z)) → Pr(X & W | V) = Pr(Y & W | V) -/
 theorem cp_conj_congr_fst (x y w v : S)
@@ -876,12 +948,11 @@ theorem cp_conj_congr (x y w v u : S)
     (hwv : ∀ z : S, cp w z = cp v z) :
     cp (a x w) u = cp (a y v) u := by
   rw [ax_A5 x w u, ax_A5 y v u, hxy (a w u)]
-  have : cp w u = cp v u := hwv u
   have h_cond := cp_cond_congr w v y u hwv
   rw [hwv u, h_cond]
 
 -- ============================================================
--- Boolean Algebra Structure
+-- Boolean Equivalence and Huntington Axioms
 -- ============================================================
 
 /-- Definition D1: X ≡ Y iff ∀ Z, Pr(X | Z) = Pr(Y | Z) -/
@@ -900,7 +971,8 @@ theorem peq_trans (x y z : S) (hxy : PEq x y) (hyz : PEq y z) :
     PEq x z :=
   fun w => (hxy w).trans (hyz w)
 
-/-- Property (D): Substitutability in all positions -/
+/-- Substitution of equivalent propositions in a conjunct occurring as a
+    conditioning argument. -/
 theorem peq_subst_cond (x y w : S) (h : PEq x y) :
     ∀ v : S, cp v (a x w) = cp v (a y w) :=
   fun v => cp_cond_congr x y v w h
@@ -913,20 +985,36 @@ theorem peq_subst_conj (x y w : S) (h : PEq x y) :
     PEq (a x w) (a y w) :=
   fun z => cp_conj_congr_fst x y w z h
 
--- D2: X + Y = ~(~X & ~Y) (disjunction, used directly without a new definition)
+/-- Simultaneous substitution in both arguments of conjunction. -/
+theorem peq_subst_conj₂ (x x' y y' : S) (hx : PEq x x') (hy : PEq y y') :
+    PEq (a x y) (a x' y') :=
+  fun z => cp_conj_congr x x' y y' z hx hy
+
+/-- Simultaneous substitution in both arguments of conditional probability. -/
+theorem peq_subst_cp (x x' y y' : S) (hx : PEq x x') (hy : PEq y y') :
+    cp x y = cp x' y' :=
+  (hx y).trans (ax_A2 y y' hy x')
+
+/-- Definition D2: Boolean sum (disjunction). -/
+def disj (x y : S) : S :=
+  n (a (n x) (n y))
+
+/-- Simultaneous substitution in both arguments of disjunction. -/
+theorem peq_subst_disj (x x' y y' : S) (hx : PEq x x') (hy : PEq y y') :
+    PEq (disj x y) (disj x' y') := by
+  apply peq_subst_neg
+  exact peq_subst_conj₂ _ _ _ _ (peq_subst_neg x x' hx) (peq_subst_neg y y' hy)
 
 /-- Axiom (iii): X + Y ≡ Y + X (commutativity of disjunction) -/
 theorem disj_comm (x y : S) :
-    PEq (n (a (n x) (n y))) (n (a (n y) (n x))) :=
-  fun z => cp_disj_comm x y z
+    PEq (disj x y) (disj y x) :=
+  fun z => by simpa [disj] using cp_disj_comm x y z
 
-/-- Axiom (iv): (X + Y) + Z ≡ X + (Y + Z) (associativity of disjunction) -/
+/-- Lemma 92 / Axiom (iv): (X + Y) + Z ≡ X + (Y + Z). -/
 theorem disj_assoc (x y z : S) :
-    PEq (n (a (n (n (a (n x) (n y)))) (n z)))
-         (n (a (n x) (n (n (a (n y) (n z)))))) := by
+    PEq (disj (disj x y) z) (disj x (disj y z)) := by
   intro w
   have h1 := cp_double_neg_conj (a (n x) (n y)) (n z) w
-  have h2 := cp_double_neg (a (n y) (n z)) w
   have hn1 := cp_neg_congr (a (n (n (a (n x) (n y)))) (n z))
     (a (a (n x) (n y)) (n z)) w h1
   have hassoc := cp_assoc (n x) (n y) (n z) w
@@ -943,26 +1031,22 @@ theorem disj_assoc (x y z : S) :
   have hn3 := cp_neg_congr
     (a (n x) (n (n (a (n y) (n z)))))
     (a (n x) (a (n y) (n z))) w h3
-  linarith
+  simpa [disj] using hn1.trans (hn2.trans hn3.symm)
 
 /-- Axiom (v): X + X ≡ X (idempotence of disjunction) -/
 theorem disj_idem (x : S) :
-    PEq (n (a (n x) (n x))) x :=
-  fun y => cp_disj_idem x y
+    PEq (disj x x) x :=
+  fun y => by simpa [disj] using cp_disj_idem x y
 
 -- Axioms (i) and (ii) are closure properties, automatically
 -- satisfied by the type system:
--- (i)  If x, y : S then n (a (n x) (n y)) : S  (closure under disjunction)
+-- (i)  If x, y : S then disj x y : S              (closure under disjunction)
 -- (ii) If x : S then n x : S                    (closure under negation)
 
 /-- Axiom (vi): (X & Y) + (X & ~Y) ≡ X (complementation law) -/
 theorem compl_law (x y : S) :
-    PEq (n (a (n (a x y)) (n (a x (n y))))) x :=
-  fun w => by
-    have h86 := cp_distrib_equiv x y (n y) w
-    have hcomm := cp_comm x (n (a (n y) (n (n y)))) w
-    have htaut := cp_taut_conj x y w
-    linarith
+    PEq (disj (a x y) (a x (n y))) x :=
+  fun w => by simpa [disj] using cp_complementation x y w
 
 /-- Axiom (vii): There exist distinct elements (non-triviality) -/
 theorem nontrivial : ∃ x y : S, ¬PEq x y := by

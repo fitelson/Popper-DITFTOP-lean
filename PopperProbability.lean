@@ -1,1 +1,1 @@
-import PopperProbability.Popper
+import PopperProbability.QuotientBooleanAlgebra

@@ -6,7 +6,10 @@ This file provides guidance to Claude Code when working with this repository.
 
 Lean 4 formalization of Karl Popper's axiomatic theory of conditional probability, following the derivations in Appendix *v ("Derivations in the Formal Theory of Probability") of *The Logic of Scientific Discovery* (Routledge, 2002).
 
-From six axioms (A1–A6) we derive ~100 lemmas proving that the quotient of the proposition space under probabilistic equivalence forms a Boolean algebra.
+From six axioms (A1–A6) the project formalizes Popper's main derivation,
+including the absolute-probability results (75), (96), and (97). It then
+constructs a nontrivial Mathlib `BooleanAlgebra` on the quotient by
+probabilistic equivalence.
 
 ## Building
 
@@ -18,7 +21,8 @@ Uses Lean 4.28.0-rc1 with Mathlib.
 
 ## Project Structure
 
-- `PopperProbability/Popper.lean` — The complete formalization (all axioms, lemmas, and theorems in one file)
+- `PopperProbability/Popper.lean` — Axioms, probability lemmas, absolute probability, D1/D2, and Huntington laws
+- `PopperProbability/QuotientBooleanAlgebra.lean` — `PEq` setoid, quotient operations, substitution principle, and the `BooleanAlgebra`/`Nontrivial` instances
 - `PopperProbability.lean` — Root import file
 
 ## Popper's Axiom System
@@ -55,9 +59,10 @@ The file is organized into sections following the lemma numbering:
 | Complementation | 63–70 | Pr(X & Y \| Z) + Pr(~X & Y \| Z) = Pr(Y \| Z) + Pr(~Z \| Z) |
 | InclusionExclusion | 71–80 | Pr(X ∨ Y \| Z) = Pr(X \| Z) + Pr(Y \| Z) - Pr(X & Y \| Z) |
 | Distribution | 81–86 | Conjunction distributes over disjunction |
-| DoubleNegation | 87–89 | Pr(~~X \| Z) = Pr(X \| Z) |
+| Complement/DoubleNegation | 87–94 | Complementation and Pr(~~X \| Z) = Pr(X \| Z) |
+| AbsoluteProbability | 75, 96–97 | Pr(X \| Y)Pr(Y) = Pr(X&Y), and the ratio theorem |
 | Substitution | 90–100 | Congruence / substitution principles |
-| BooleanAlgebra | — | PEq equivalence relation, axioms (i)–(vii) |
+| BooleanAlgebra | — | Nontrivial `BooleanAlgebra (EventQuotient S)` instance |
 
 ## Naming Conventions
 
@@ -74,7 +79,9 @@ Key theorem names:
 - `cp_incl_excl` — inclusion-exclusion
 - `cp_double_neg` — double negation
 - `cp_neg_congr` — negation congruence
+- `absProb`, `absProb_mul`, `cp_eq_absProb_div` — absolute probability and Popper's formulas (75), (96), and (97)
 - `PEq` — probabilistic equivalence relation
+- `EventQuotient` — quotient by `PEq`, with `BooleanAlgebra` and `Nontrivial` instances
 
 ## Proof Style
 
